@@ -1,20 +1,125 @@
 import requests, json
+import datetime
+import pytz
 
-Park_IDs = {
-    "epcot" : "47f90d2c-e191-4239-a466-5892ef59a88b",
-    "magic kingdom" : "75ea578a-adc8-4116-a54d-dccb60765ef9",
-    "hollywood studios" :"288747d1-8b4f-4a64-867e-ea7c9b27bad8",
-    "animal kingdom" : "1c84a229-8862-4648-9c71-378ddd2c7693",
-    "disneyland" : "7340550b-c14d-4def-80bb-acdb51d49a66",
-    "california adventure": "832fcd51-ea19-4e77-85c7-75d5843b127c",
-    "tokyo disneySea" : "67b290d5-3478-4f23-b601-2f8fb71ba803",
-    "Tokyo Disneyland" : "3cc919f1-d16d-43e0-8c3f-1dd269bd1a42",
-    "Shanghai Disneyland" : "ddc4357c-c148-4b36-9888-07894fe75e83",
-    "Walt Disney Studios Park" : "ca888437-ebb4-4d50-aed2-d227f7096968",
-    "Disneyland Park" : "dae968d5-630d-4719-8b06-3d107e944401",
-    "Hong Kong Disneyland Park" : "bd0eb47b-2f02-4d4d-90fa-cb3a68988e3b"
+ParkTimeZones = {
+    "epcot": "America/New_York",
+    "magic kingdom": "America/New_York",
+    "hollywood studios": "America/New_York",
+    "animal kingdom": "America/New_York",
+    "disneyland": "America/Los_Angeles",
+    "california adventure": "America/Los_Angeles",
+    "tokyo disneySea": "Asia/Tokyo",
+    "tokyo disneyland": "Asia/Tokyo",
+    "shanghai disneyland": "Asia/Shanghai",
+    "walt disney studios park": "Europe/Paris",
+    "disneyland park": "Europe/Paris",
+    "hong kong disneyland park": "Asia/Hong_Kong",
 }
 
+Park_IDs = {
+    "epcot": "47f90d2c-e191-4239-a466-5892ef59a88b",
+    "magic kingdom": "75ea578a-adc8-4116-a54d-dccb60765ef9",
+    "hollywood studios": "288747d1-8b4f-4a64-867e-ea7c9b27bad8",
+    "animal kingdom": "1c84a229-8862-4648-9c71-378ddd2c7693",
+    "disneyland": "7340550b-c14d-4def-80bb-acdb51d49a66",
+    "california adventure": "832fcd51-ea19-4e77-85c7-75d5843b127c",
+    "tokyo disneySea": "67b290d5-3478-4f23-b601-2f8fb71ba803",
+    "tokyo disneyland": "3cc919f1-d16d-43e0-8c3f-1dd269bd1a42",
+    "shanghai disneyland": "ddc4357c-c148-4b36-9888-07894fe75e83",
+    "walt disney studios park": "ca888437-ebb4-4d50-aed2-d227f7096968",
+    "disneyland park": "dae968d5-630d-4719-8b06-3d107e944401",
+    "hong kong disneyland park": "bd0eb47b-2f02-4d4d-90fa-cb3a68988e3b",
+}
+
+def timecheck(parkWanted):
+    parks = ParkTimeZones.keys()
+    parkWantedTimeZone = None
+    SpecialEvent = False
+    completed = None
+
+    for parkTime in parks:
+        if parkWanted.lower() == parkTime:
+            URL = "https://api.themeparks.wiki/v1/entity/{}/schedule".format(
+                Park_IDs[parkTime]
+            )
+            Park_JSONRAW = requests.get(URL)
+            Park_JSON = Park_JSONRAW.json()
+            parkWanted = parkTime
+            parkWantedTimeZone = ParkTimeZones[parkTime]
+            parkCurrentDate = datetime.datetime.now(
+                pytz.timezone(parkWantedTimeZone)
+            ).strftime("%Y-%m-%d")
+            parkCurrentTime = datetime.datetime.now(
+                pytz.timezone(parkWantedTimeZone)
+            ).strftime("%Y-%m-%dT%X")
+            parkOffset = (
+                str(
+                    datetime.datetime.now(pytz.timezone(parkWantedTimeZone)).strftime("%z")
+                ).split("00")[0]
+                + ":00"
+            )
+            print("\nCurrent date at {}: {}\n".format(parkTime, parkCurrentDate))
+            print(
+                "\nCurrent time at {}: {}\n".format(
+                    parkTime, parkCurrentTime.split("T")[-1]
+                )
+            )
+            if "schedule" in Park_JSON:
+                for schedule in Park_JSON["schedule"]:
+                    if (
+                        schedule["date"] == str(parkCurrentDate)
+                        and schedule["type"] != "TICKETED_EVENT"
+                        and completed != "Done"
+                    ):
+                        BaseOperationsOpen = (
+                            str(schedule["openingTime"])
+                            .split("T")[-1]
+                            .split("-")[0]
+                            .split("+")[0]
+                        )
+                        BaseOperationsClose = (
+                            str(schedule["closingTime"])
+                            .split("T")[-1]
+                            .split("-")[0]
+                            .split("+")[0]
+                        )
+                        completed = "Done"
+
+                    if (
+                        schedule["date"] == str(parkCurrentDate)
+                        and schedule["type"] == "TICKETED_EVENT"
+                    ):
+                        SpecialOperationsDesc = schedule["description"]
+                        SpecialOperationsOpen = (
+                            str(schedule["openingTime"])
+                            .split("T")[-1]
+                            .split("-")[0]
+                            .split("+")[0]
+                        )
+                        SpecialOperationsExit = (
+                            str(schedule["closingTime"])
+                            .split("T")[-1]
+                            .split("-")[0]
+                            .split("+")[0]
+                        )
+                        SpecialEvent = True
+            print(
+                "\nBasic Operation Open Time: {}\nBasic Operation Exit Time: {}".format(
+                    BaseOperationsOpen, BaseOperationsClose
+                )
+            )
+            if SpecialEvent:
+                print(
+                    "\n\nSpecial Events\n\n{} Open Time: {} \n{} Closing Time: {}".format(
+                        SpecialOperationsDesc,
+                        SpecialOperationsOpen,
+                        SpecialOperationsDesc,
+                        SpecialOperationsExit,
+                    )
+                )
+            print("\n\n\n")
+            break
 
 def RideID(parkWanted):
     if parkWanted.lower() == "epcot":
@@ -32,15 +137,15 @@ def RideID(parkWanted):
     elif parkWanted.lower() == "tokyo disneySea":
         Park_ID = Park_IDs["tokyo disneySea"]
     elif parkWanted.lower() == "tokyo disneyland":
-        Park_ID = Park_IDs["Tokyo Disneyland"]
+        Park_ID = Park_IDs["tokyo disneyland"]
     elif parkWanted.lower() == "shanghai disneyland":
-        Park_ID = Park_IDs["Shanghai Disneyland"]
+        Park_ID = Park_IDs["shanghai disneyland"]
     elif parkWanted.lower() == "walt disney studios park":
-        Park_ID = Park_IDs["Walt Disney Studios Park"]
+        Park_ID = Park_IDs["walt disney studios park"]
     elif parkWanted.lower() == "disneyland park":
-        Park_ID = Park_IDs["Disneyland Park"]
+        Park_ID = Park_IDs["disneyland park"]
     elif parkWanted.lower() == "hong kong disneyland park":
-        Park_ID = Park_IDs["Hong Kong Disneyland Park"]
+        Park_ID = Park_IDs["hong kong disneyland park"]
     elif parkWanted.lower() == "exit":
         print("Thank you for using. Have a magical day!!!")
         exit()
@@ -56,9 +161,10 @@ def RideID(parkWanted):
         print("That is not an option. Stopping program")
         exit()
 
-
 def RideDisplay(RideIDJason, RideTypeWanted):
     firstItem = RideIDJason["children"]
+    
+    
     for rides in firstItem:
         Ride_ID = rides["id"]
         Ride_Name = rides["name"]
