@@ -118,7 +118,7 @@ def timecheck(parkWanted):
                         SpecialOperationsExit,
                     )
                 )
-            print("\n\n\n")
+            print("\n\n")
             break
 
 def RideID(parkWanted):
